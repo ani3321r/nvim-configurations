@@ -1,3 +1,4 @@
+
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then
   vim.fn.system({
@@ -13,7 +14,14 @@ vim.opt.rtp:prepend(lazypath)
 
 
 require("lazy").setup({
-  { "neovim/nvim-lspconfig" },
+  { "neovim/nvim-lspconfig",
+	dependencies = {
+      'hrsh7th/nvim-cmp',      
+      'hrsh7th/cmp-nvim-lsp',  
+      'L3MON4D3/LuaSnip',      
+      'saadparwaiz1/cmp_luasnip', 
+    }
+  },
   { "simrat39/rust-tools.nvim" },
   { "hrsh7th/nvim-cmp" },
   { "hrsh7th/cmp-nvim-lsp" },
@@ -70,6 +78,20 @@ vim.api.nvim_set_keymap("n", "<leader>e", ":Neotree toggle<CR>", { noremap = tru
 
 local nvim_lsp = require('lspconfig')
 local rust_tools = require("rust-tools")
+local lspconfig = require('lspconfig')
+local capabilities = require('cmp_nvim_lsp').default_capabilities()
+
+lspconfig.clangd.setup {
+  capabilities = capabilities,
+  on_attach = function(_, bufnr)
+    local bufopts = { noremap=true, silent=true, buffer=bufnr }
+    vim.keymap.set('n', 'gd', vim.lsp.buf.definition, bufopts)  
+    vim.keymap.set('n', 'K', vim.lsp.buf.hover, bufopts)        
+    vim.keymap.set('n', 'gi', vim.lsp.buf.implementation, bufopts) 
+    vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename, bufopts) 
+  end
+}
+
 
 rust_tools.setup({
     server = {
@@ -87,18 +109,26 @@ require'nvim-treesitter.configs'.setup {
   },
 }
 
-local cmp = require'cmp'
-
+local cmp = require('cmp')
 cmp.setup({
+  snippet = {
+    expand = function(args)
+      require('luasnip').lsp_expand(args.body)  
+    end,
+  },
   mapping = {
     ['<Tab>'] = cmp.mapping.select_next_item(),
     ['<S-Tab>'] = cmp.mapping.select_prev_item(),
+    ['<CR>'] = cmp.mapping.confirm({ select = true }), 
   },
-  sources = {
+  sources = cmp.config.sources({
     { name = 'nvim_lsp' },
+    { name = 'luasnip' }, 
+  }, {
     { name = 'buffer' },
-  },
+  })
 })
+
 
 vim.api.nvim_set_keymap('n', '<leader>cb', ':!cargo build<CR>', { noremap = true, silent = true })
 
@@ -111,3 +141,17 @@ vim.api.nvim_set_keymap('n', '<leader>cbr', ':!cargo build --release<CR>', { nor
 vim.api.nvim_set_keymap('n', '<leader>ch', ':!cargo check<CR>', { noremap = true, silent = true })
 
 vim.api.nvim_set_keymap('n', '<leader>r', ':!cargo run<CR>', { noremap = true, silent = true })
+
+vim.api.nvim_set_keymap('n', '<leader>rc', ':w<CR>:!gcc % -o %:r && ./%:r<CR>', { noremap = true, silent = true })
+
+vim.api.nvim_set_keymap('n', '<leader>RC', ':w<CR>:!g++ % -o %:r && ./%:r<CR>', { noremap = true, silent = true })
+
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = {"c", "cpp", "rust"},
+  callback = function()
+    vim.opt_local.expandtab = true
+    vim.opt_local.shiftwidth = 2
+    vim.opt_local.tabstop = 2
+    vim.opt_local.softtabstop = 2
+  end,
+})
